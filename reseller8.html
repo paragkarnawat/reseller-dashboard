@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reseller Listing Dashboard - Vinted & Reshopper (Rev 8)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b sticky top-0 z-20 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-2">
+        <div class="bg-indigo-600 text-white p-2 rounded-lg">
+          <i data-lucide="tag" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-gray-900">Reseller Listing Dashboard <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">Rev 8</span></h1>
+          <p class="text-xs text-gray-500">Cross-list to Vinted & Reshopper with AI</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <button id="openDraftsBtn" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border rounded-lg transition">
+          <i data-lucide="folder-open" class="w-4 h-4"></i> Saved Drafts (<span id="draftCount">0</span>)
+        </button>
+
+        <div class="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 border rounded-lg shadow-xs">
+          <i data-lucide="key" class="w-4 h-4 text-gray-400"></i>
+          <input type="password" id="apiKeyInput" placeholder="Gemini API Key..." 
+                 class="text-xs bg-transparent border-none focus:outline-none w-36 sm:w-44">
+          <button id="saveKeyBtn" class="bg-indigo-600 text-white px-2.5 py-1 text-xs rounded hover:bg-indigo-700 transition font-medium">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Warning Banner -->
+  <div id="apiWarning" class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-center text-xs text-amber-800 hidden">
+    <span class="font-semibold">Notice:</span> No API key saved. The app will use built-in mock AI generation. Add your key above to use real Gemini Vision AI.
+  </div>
+
+  <main class="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    
+    <!-- Left Column: Inputs -->
+    <div class="space-y-6">
+      
+      <!-- Photo Upload Box -->
+      <div class="bg-white p-5 rounded-xl border shadow-xs space-y-4">
+        <h2 class="text-base font-semibold flex items-center gap-2 text-gray-900">
+          <i data-lucide="upload-cloud" class="w-5 h-5 text-indigo-600"></i> 1. Item Intake & Photos
+        </h2>
+        
+        <!-- Drop Zone with hidden input -->
+        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:border-indigo-500 cursor-pointer transition flex flex-col items-center justify-center gap-2">
+          <input type="file" id="fileInput" accept="image/*" class="hidden">
+          <div class="bg-indigo-50 text-indigo-600 p-3 rounded-full">
+            <i data-lucide="image" class="w-6 h-6"></i>
+          </div>
+          <p class="text-sm font-medium text-gray-700">Click or Drag & Drop item image here</p>
+          <p class="text-xs text-gray-400">PNG, JPG, or WEBP</p>
+        </div>
+
+        <div id="previewContainer" class="hidden space-y-3">
+          <div class="relative rounded-xl overflow-hidden border bg-gray-50 h-64 flex items-center justify-center">
+            <img id="imagePreview" src="" alt="Item Preview" class="max-h-full max-w-full object-contain">
+            <button id="removeImgBtn" class="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full hover:bg-red-700 transition shadow-md" title="Remove Image">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings & Trigger -->
+      <div class="bg-white p-5 rounded-xl border shadow-xs space-y-4">
+        <h2 class="text-base font-semibold flex items-center gap-2 text-gray-900">
+          <i data-lucide="settings" class="w-5 h-5 text-indigo-600"></i> 2. Generation Settings
+        </h2>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Target Marketplace Style</label>
+          <select id="platformSelect" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+            <option value="Dual Platform">Dual Platform (Vinted Optimized + Reshopper Friendly)</option>
+            <option value="Vinted Optimized">Vinted Optimized (Hashtags & Trend focus)</option>
+            <option value="Reshopper Optimized">Reshopper Optimized (Local family focus)</option>
+          </select>
+        </div>
+
+        <button id="generateBtn" class="w-full bg-indigo-600 text-white font-medium py-3 rounded-xl hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-sm text-sm">
+          <i data-lucide="sparkles" class="w-5 h-5"></i> Generate Listing with AI
+        </button>
+
+        <p id="statusMsg" class="text-xs text-center text-gray-600 font-medium min-h-[20px]"></p>
+      </div>
+
+    </div>
+
+    <!-- Right Column: AI Output -->
+    <div class="bg-white p-5 rounded-xl border shadow-xs flex flex-col justify-between space-y-4">
+      <div>
+        <div class="flex justify-between items-center pb-3 border-b mb-4">
+          <h2 class="text-base font-semibold flex items-center gap-2 text-gray-900">
+            <i data-lucide="sparkles" class="w-5 h-5 text-indigo-600"></i> AI Generated Output
+          </h2>
+          <div class="flex items-center gap-2">
+            <button id="saveDraftBtn" class="bg-gray-50 border text-gray-700 hover:bg-gray-100 text-xs px-3 py-1.5 rounded-lg transition font-medium">
+              Save Draft
+            </button>
+            <button id="copyAllBtn" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs px-3 py-1.5 rounded-lg transition font-medium">
+              Copy All
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-3.5">
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase">Title</label>
+            <div class="flex gap-1.5 mt-1">
+              <input type="text" id="outTitle" class="w-full p-2.5 text-sm border rounded-lg bg-gray-50">
+              <button class="copy-btn p-2.5 border rounded-lg hover:bg-gray-50" data-target="outTitle"><i data-lucide="copy" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase">Brand</label>
+              <div class="flex gap-1.5 mt-1">
+                <input type="text" id="outBrand" class="w-full p-2.5 text-sm border rounded-lg bg-gray-50">
+                <button class="copy-btn p-2.5 border rounded-lg hover:bg-gray-50" data-target="outBrand"><i data-lucide="copy" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase">Size</label>
+              <div class="flex gap-1.5 mt-1">
+                <input type="text" id="outSize" class="w-full p-2.5 text-sm border rounded-lg bg-gray-50">
+                <button class="copy-btn p-2.5 border rounded-lg hover:bg-gray-50" data-target="outSize"><i data-lucide="copy" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase">Condition</label>
+              <div class="flex gap-1.5 mt-1">
+                <input type="text" id="outCondition" class="w-full p-2.5 text-sm border rounded-lg bg-gray-50">
+                <button class="copy-btn p-2.5 border rounded-lg hover:bg-gray-50" data-target="outCondition"><i data-lucide="copy" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase">Color</label>
+              <div class="flex gap-1.5 mt-1">
+                <input type="text" id="outColor" class="w-full p-2.5 text-sm border rounded-lg bg-gray-50">
+                <button class="copy-btn p-2.5 border rounded-lg hover:bg-gray-50" data-target="outColor"><i data-lucide="copy" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pricing Insights Panel (DKK & Market Comps) -->
+          <div class="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3">
+            <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wide flex items-center gap-1.5">
+              <i data-lucide="coins" class="w-3.5 h-3.5 text-indigo-600"></i> Pricing Insights (DKK)
+            </h3>
+
+            <div class="grid grid-cols-3 gap-2.5">
+              <div>
+                <label class="text-[11px] font-semibold text-gray-600">Original Price (New)</label>
+                <div class="flex gap-1 mt-1">
+                  <input type="text" id="outRetailPrice" class="w-full p-2 text-xs border rounded-lg bg-white" placeholder="e.g. 400 DKK">
+                  <button class="copy-btn p-1.5 border rounded-lg bg-white hover:bg-gray-50" data-target="outRetailPrice"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-[11px] font-semibold text-gray-600">Reseller Market Comp</label>
+                <div class="flex gap-1 mt-1">
+                  <input type="text" id="outCompPrice" class="w-full p-2 text-xs border rounded-lg bg-white" placeholder="e.g. 150 DKK">
+                  <button class="copy-btn p-1.5 border rounded-lg bg-white hover:bg-gray-50" data-target="outCompPrice"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-[11px] font-bold text-indigo-900">Recommended Price</label>
+                <div class="flex gap-1 mt-1">
+                  <input type="text" id="outPrice" class="w-full p-2 text-xs border border-indigo-300 rounded-lg bg-white font-bold text-indigo-700" placeholder="e.g. 120 DKK">
+                  <button class="copy-btn p-1.5 border border-indigo-300 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" data-target="outPrice"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase">Description</label>
+            <div class="flex gap-1.5 mt-1">
+              <textarea id="outDescription" rows="6" class="w-full p-2.5 text-sm border rounded-lg bg-gray-50"></textarea>
+              <button class="copy-btn p-2.5 border rounded-lg hover:bg-gray-50 self-start" data-target="outDescription"><i data-lucide="copy" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Drafts Modal -->
+  <div id="draftsModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col shadow-xl">
+      <div class="flex justify-between items-center pb-3 border-b">
+        <h3 class="text-lg font-bold text-gray-900">Saved Drafts</h3>
+        <button id="closeDraftsBtn" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div id="draftsListContainer" class="overflow-y-auto space-y-3 flex-1"></div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    let currentBase64Image = "";
+    let currentMimeType = "image/jpeg";
+    let drafts = JSON.parse(localStorage.getItem('reseller_drafts') || '[]');
+
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const apiWarning = document.getElementById('apiWarning');
+
+    function checkApiKeyStatus() {
+      const savedKey = localStorage.getItem('gemini_api_key') || '';
+      apiKeyInput.value = savedKey;
+      if (!savedKey) apiWarning.classList.remove('hidden');
+      else apiWarning.classList.add('hidden');
+    }
+    checkApiKeyStatus();
+
+    document.getElementById('saveKeyBtn').addEventListener('click', () => {
+      const val = apiKeyInput.value.trim();
+      localStorage.setItem('gemini_api_key', val);
+      checkApiKeyStatus();
+      alert('Gemini API Key saved successfully!');
+    });
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-indigo-500'); });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-indigo-500');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        fileInput.files = e.dataTransfer.files;
+        processFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        processFile(e.target.files[0]);
+      }
+    });
+
+    function processFile(file) {
+      currentMimeType = file.type || "image/jpeg";
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        currentBase64Image = evt.target.result;
+        imagePreview.src = currentBase64Image;
+        dropZone.classList.add('hidden');
+        previewContainer.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('removeImgBtn').addEventListener('click', () => {
+      currentBase64Image = "";
+      fileInput.value = "";
+      imagePreview.src = "";
+      previewContainer.classList.add('hidden');
+      dropZone.classList.remove('hidden');
+    });
+
+    // AI Generator Listener with Automatic Retry & Free Tier Queue Fallback
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const apiKey = localStorage.getItem('gemini_api_key') || apiKeyInput.value.trim();
+      const statusMsg = document.getElementById('statusMsg');
+
+      if (!currentBase64Image) {
+        alert("Please upload an item image first!");
+        return;
+      }
+
+      if (!apiKey) {
+        statusMsg.textContent = "Generating sample listing (No API Key provided)...";
+        statusMsg.className = "text-xs text-center text-amber-600 font-medium";
+        setTimeout(() => {
+          document.getElementById('outTitle').value = "Premium Cotton Casual Hoodie - Excellent Condition";
+          document.getElementById('outBrand').value = "H&M / Zara";
+          document.getElementById('outSize').value = "Medium (M)";
+          document.getElementById('outCondition').value = "Very Good";
+          document.getElementById('outColor').value = "Navy / Dark Blue";
+          document.getElementById('outRetailPrice').value = "399 DKK";
+          document.getElementById('outCompPrice').value = "140 DKK";
+          document.getElementById('outPrice').value = "120 DKK";
+          document.getElementById('outDescription').value = "Super cozy and stylish hoodie in excellent pre-owned condition with no fading or defects.\n\n- Soft cotton blend fabric\n- Relaxed fit\n- Clean & smoke-free home\n\n#vinted #reshopper #sustainable #casualwear";
+          statusMsg.textContent = "Mock listing generated successfully!";
+          statusMsg.className = "text-xs text-center text-green-600 font-semibold";
+        }, 500);
+        return;
+      }
+
+      const rawBase64 = currentBase64Image.split(',')[1];
+      const platform = document.getElementById('platformSelect').value;
+
+      const promptText = `Analyze this photo for second-hand resale on ${platform}. 
+CRITICAL REQUIREMENT: All text output (title, brand, condition, color, and description) MUST be written entirely in English.
+All price estimates must be in Danish Kroner (DKK).
+Respond with ONLY a raw JSON object matching these keys:
+{
+  "title": "short concise title in English",
+  "brand": "brand name",
+  "size": "item size",
+  "condition": "Very Good / Good / New",
+  "color": "primary color in English",
+  "estimated_retail_price": "estimated new retail price in DKK (e.g. 400 DKK)",
+  "reseller_comp_price": "estimated average price of similar item posted for resell on Vinted or Reshopper in DKK (e.g. 150 DKK)",
+  "price_recommendation": "recommended listing price in DKK (e.g. 120 DKK)",
+  "description": "friendly text description with bullet points and hashtags, written entirely in English"
+}`;
+
+      // Free Tier model fallback list (Flash primary, Flash-Lite secondary queue)
+      const modelsToTry = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
+      let success = false;
+      let lastError = "";
+
+      for (const model of modelsToTry) {
+        statusMsg.textContent = `Connecting to ${model}...`;
+        statusMsg.className = "text-xs text-center text-indigo-600 font-medium animate-pulse";
+
+        // Retry up to 2 times per model if server returns 503 high demand
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            if (attempt > 1) {
+              statusMsg.textContent = `High traffic on ${model}, retrying (Attempt ${attempt})...`;
+              await new Promise(res => setTimeout(res, 2000)); // Wait 2 seconds before retry
+            }
+
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+            const payload = {
+              contents: [{
+                parts: [
+                  { text: promptText },
+                  {
+                    inlineData: {
+                      mimeType: currentMimeType,
+                      data: rawBase64
+                    }
+                  }
+                ]
+              }]
+            };
+
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey 
+              },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              const errRes = await response.json();
+              throw new Error(errRes.error?.message || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            let textOutput = data.candidates[0].content.parts[0].text;
+
+            textOutput = textOutput.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const json = JSON.parse(textOutput);
+
+            document.getElementById('outTitle').value = json.title || '';
+            document.getElementById('outBrand').value = json.brand || '';
+            document.getElementById('outSize').value = json.size || '';
+            document.getElementById('outCondition').value = json.condition || '';
+            document.getElementById('outColor').value = json.color || '';
+            document.getElementById('outRetailPrice').value = json.estimated_retail_price || '';
+            document.getElementById('outCompPrice').value = json.reseller_comp_price || '';
+            document.getElementById('outPrice').value = json.price_recommendation || '';
+            document.getElementById('outDescription').value = json.description || '';
+
+            statusMsg.textContent = `Listing generated successfully! (${model})`;
+            statusMsg.className = "text-xs text-center text-green-600 font-semibold";
+            success = true;
+            break;
+
+          } catch (err) {
+            console.warn(`Attempt ${attempt} on ${model} failed:`, err.message);
+            lastError = err.message;
+            // If it's high demand (503), continue retry loop
+            if (!err.message.includes("high demand") && !err.message.includes("503")) {
+              break; // Break retry loop and try next model
+            }
+          }
+        }
+
+        if (success) break;
+      }
+
+      if (!success) {
+        statusMsg.textContent = `Server busy: Please tap Generate again in a few seconds.`;
+        statusMsg.className = "text-xs text-center text-amber-600 font-semibold";
+        alert(`Google AI servers are temporarily busy on the Free Tier:\n\n${lastError}\n\nPlease try tapping Generate again in a few seconds.`);
+      }
+    });
+
+    // Copy buttons
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        const targetEl = document.getElementById(targetId);
+        if (targetEl && targetEl.value) {
+          navigator.clipboard.writeText(targetEl.value);
+          btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-green-600"></i>`;
+          lucide.createIcons();
+          setTimeout(() => {
+            btn.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i>`;
+            lucide.createIcons();
+          }, 2000);
+        }
+      });
+    });
+
+    document.getElementById('copyAllBtn').addEventListener('click', () => {
+      const text = `Title: ${document.getElementById('outTitle').value}\nBrand: ${document.getElementById('outBrand').value}\nSize: ${document.getElementById('outSize').value}\nCondition: ${document.getElementById('outCondition').value}\nOriginal Price (New): ${document.getElementById('outRetailPrice').value}\nReseller Market Comp: ${document.getElementById('outCompPrice').value}\nRecommended Price: ${document.getElementById('outPrice').value}\n\nDescription:\n${document.getElementById('outDescription').value}`;
+      navigator.clipboard.writeText(text);
+      alert('All fields copied to clipboard!');
+    });
+  </script>
+</body>
+</html>
